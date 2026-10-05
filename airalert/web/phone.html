@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#060b15">
+<title>AirAlert</title>
+<style>
+  :root { --bg:#060b15; --panel:#0e1829; --raised:#132036; --border:#1f3050; --text:#e9eff9; --dim:#a9b8d0;
+          --muted:#71839f; --accent:#4ea8ff; --vessel:#2dd4bf; --alert:#ffb224; --danger:#ff5f6d; --ok:#34d399; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--text); overflow:hidden;
+               font: 15px/1.35 -apple-system, "Segoe UI", Roboto, sans-serif; }
+  #app { display:flex; flex-direction:column; height:100%; }
+  header { display:flex; align-items:center; gap:10px; padding:10px 14px; padding-top:max(10px, env(safe-area-inset-top));
+           background:var(--panel); border-bottom:1px solid var(--border); }
+  header b { font-size:17px; }
+  #counts { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:12px; }
+  .pill { margin-left:auto; padding:4px 10px; border-radius:14px; font-size:12px; font-weight:700; letter-spacing:.5px;
+          background:rgba(113,131,159,.15); color:var(--muted); white-space:nowrap; }
+  .pill.live { background:rgba(52,211,153,.14); color:var(--ok); }
+  .pill.sim { background:rgba(195,139,255,.15); color:#c38bff; }
+  .pill.lost { background:rgba(255,95,109,.14); color:var(--danger); }
+  main { position:relative; flex:1; min-height:0; }
+  .view { position:absolute; inset:0; display:none; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  .view.on { display:block; }
+  #map { overflow:hidden; touch-action:none; }
+  canvas { display:block; width:100%; height:100%; }
+  .tools { position:absolute; right:10px; top:10px; display:flex; flex-direction:column; gap:8px; }
+  .tools button, .chip { background:rgba(14,24,41,.92); color:var(--text); border:1px solid var(--border);
+          border-radius:11px; min-width:44px; height:44px; font-size:20px; }
+  .tools button.small { font-size:11px; font-weight:700; }
+  .tools button.active { border-color:var(--accent); color:var(--accent); }
+  #attribution { position:absolute; right:6px; bottom:4px; font-size:10px; color:var(--muted);
+                 background:rgba(6,11,21,.7); padding:1px 5px; border-radius:4px; display:none; }
+  nav { display:flex; background:var(--panel); border-top:1px solid var(--border);
+        padding-bottom:env(safe-area-inset-bottom); }
+  nav button { flex:1; background:none; border:0; color:var(--dim); padding:11px 4px; font-size:13px; font-weight:600; }
+  nav button.on { color:var(--accent); box-shadow: inset 0 2px 0 var(--accent); }
+  .row { display:flex; align-items:center; gap:12px; padding:11px 14px; border-bottom:1px solid var(--border); }
+  .row .name { font-weight:600; }
+  .row .sub, .muted { color:var(--muted); font-size:12.5px; }
+  .row .right { margin-left:auto; text-align:right; white-space:nowrap; font-variant-numeric: tabular-nums; }
+  .dot { width:10px; height:10px; border-radius:5px; flex:none; }
+  .empty { padding:40px 24px; text-align:center; color:var(--muted); }
+  #sheet { position:absolute; left:8px; right:8px; bottom:8px; background:rgba(14,24,41,.97); border:1px solid var(--border);
+           border-radius:16px; padding:14px 16px; display:none; box-shadow:0 10px 30px rgba(0,0,0,.5); }
+  #sheet h2 { margin:0 28px 2px 0; font-size:19px; }
+  #sheet .grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:10px; }
+  #sheet .cell { background:var(--raised); border-radius:10px; padding:7px 9px; }
+  #sheet .cell small { display:block; color:var(--muted); font-size:10px; font-weight:700; letter-spacing:.7px; }
+  #sheet .cell span { font-size:16px; font-weight:600; font-variant-numeric: tabular-nums; }
+  #sheet .x { position:absolute; right:8px; top:6px; background:none; border:0; color:var(--dim); font-size:24px; padding:6px 10px; }
+  .tag { display:inline-block; margin:6px 6px 0 0; padding:2px 9px; border-radius:11px; font-size:12px; font-weight:600;
+         background:rgba(78,168,255,.14); color:var(--accent); }
+  .tag.red { background:rgba(255,95,109,.16); color:var(--danger); }
+  #pair { position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:center;
+          gap:14px; padding:24px; text-align:center; background:var(--bg); }
+  #pair input { width:210px; font-size:32px; letter-spacing:8px; text-align:center; padding:10px; border-radius:12px;
+                border:1px solid var(--border); background:var(--raised); color:var(--text); }
+  #pair button { font-size:16px; font-weight:700; padding:12px 34px; border-radius:12px; border:0; background:var(--accent); color:#fff; }
+  #pairError { color:var(--danger); min-height:20px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header><b>AirAlert</b><span class="muted" id="counts"></span><span class="pill" id="status">Connecting…</span></header>
+  <main>
+    <div class="view on" id="map">
+      <canvas id="canvas"></canvas>
+      <div class="tools">
+        <button id="zoomIn" aria-label="Zoom in">+</button>
+        <button id="zoomOut" aria-label="Zoom out">−</button>
+        <button id="home" aria-label="Center on station">⌂</button>
+        <button id="streets" class="small" aria-label="Street map">MAP</button>
+      </div>
+      <div id="attribution">© OpenStreetMap contributors</div>
+      <div id="sheet"><button class="x" id="closeSheet" aria-label="Close">×</button><h2 id="sheetTitle"></h2>
+        <div class="muted" id="sheetSub"></div><div id="sheetTags"></div><div class="grid" id="sheetGrid"></div></div>
+    </div>
+    <div class="view" id="list"></div>
+    <div class="view" id="alerts"></div>
+    <div id="pair">
+      <h2 style="margin:0">Pair this device</h2>
+      <div class="muted">Enter the 6-digit code shown in AirAlert<br>under Settings → Connections.</div>
+      <input id="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="••••••">
+      <div id="pairError"></div>
+      <button id="pairButton">Pair</button>
+    </div>
+  </main>
+  <nav><button data-view="map" class="on">Map</button><button data-view="list">Traffic</button><button data-view="alerts">Alerts</button></nav>
+</div>
+<script>
+"use strict";
+var unpaired = false, state = null, selected = "", view = { lat: 0, lon: 0, zoom: 8, set: false }, streets = null, lastOk = 0;
+var canvas = document.getElementById("canvas"), ctx = canvas.getContext("2d"), tiles = {}, hits = [];
+var STOPS = [[0,[255,159,67]],[5000,[255,209,102]],[10000,[94,226,122]],[20000,[56,214,245]],[30000,[91,140,255]],[40000,[176,124,255]]];
+function $(id) { return document.getElementById(id); }
+function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]; }); }
+function altColor(a) {
+  if (a == null) return "#7cc4ff";
+  if (a <= 0) return "rgb(" + STOPS[0][1] + ")";
+  for (var i = 1; i < STOPS.length; i++) if (a <= STOPS[i][0]) {
+    var f = (a - STOPS[i-1][0]) / (STOPS[i][0] - STOPS[i-1][0]), p = STOPS[i-1][1], q = STOPS[i][1];
+    return "rgb(" + [0,1,2].map(function (k) { return Math.round(p[k] + (q[k] - p[k]) * f); }) + ")";
+  }
+  return "rgb(" + STOPS[STOPS.length-1][1] + ")";
+}
+function colorOf(t) { return t.emg ? "#ff5f6d" : t.stale ? "#6c7b92" : t.kind === "vessel" ? "#2dd4bf" : altColor(t.alt); }
+function num(v, d) { return v == null ? "—" : Number(v).toLocaleString(undefined, { maximumFractionDigits: d || 0 }); }
+// Web Mercator
+function nx(lon) { return (lon + 180) / 360; }
+function ny(lat) { var s = Math.sin(Math.max(-85.05, Math.min(85.05, lat)) * Math.PI / 180); return 0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI); }
+function world() { return 256 * Math.pow(2, view.zoom); }
+function toScreen(lat, lon) { var W = world(); return [canvas.clientWidth / 2 + (nx(lon) - nx(view.lon)) * W, canvas.clientHeight / 2 + (ny(lat) - ny(view.lat)) * W]; }
+function toGeo(x, y) {
+  var W = world(), mx = nx(view.lon) + (x - canvas.clientWidth / 2) / W, my = ny(view.lat) + (y - canvas.clientHeight / 2) / W;
+  return [Math.atan(Math.sinh(Math.PI * (1 - 2 * my))) * 180 / Math.PI, mx * 360 - 180];
+}
+function dest(lat, lon, km, brg) {
+  var p = lat * Math.PI / 180, l = lon * Math.PI / 180, b = brg * Math.PI / 180, d = km / 6371.0088;
+  var la = Math.asin(Math.sin(p) * Math.cos(d) + Math.cos(p) * Math.sin(d) * Math.cos(b));
+  return [la * 180 / Math.PI, (l + Math.atan2(Math.sin(b) * Math.sin(d) * Math.cos(p), Math.cos(d) - Math.sin(p) * Math.sin(la))) * 180 / Math.PI];
+}
+function resize() {
+  var r = window.devicePixelRatio || 1;
+  canvas.width = Math.round(canvas.clientWidth * r); canvas.height = Math.round(canvas.clientHeight * r);
+  ctx.setTransform(r, 0, 0, r, 0, 0); draw();
+}
+function tile(z, x, y) {
+  var key = z + "/" + x + "/" + y, t = tiles[key];
+  if (!t) { t = tiles[key] = new Image(); t.onload = draw; t.src = "https://tile.openstreetmap.org/" + key + ".png"; }
+  return t.complete && t.naturalWidth ? t : null;
+}
+function draw() {
+  var w = canvas.clientWidth, h = canvas.clientHeight; hits = [];
+  ctx.fillStyle = "#09111f"; ctx.fillRect(0, 0, w, h);
+  if (!state) return;
+  var W = world();
+  if (streets) {
+    var z = Math.max(0, Math.min(19, Math.round(view.zoom))), n = Math.pow(2, z), ts = W / n;
+    var left = nx(view.lon) * W - w / 2, top = ny(view.lat) * W - h / 2;
+    for (var ty = Math.max(0, Math.floor(top / ts)); ty <= Math.min(n - 1, Math.floor((top + h) / ts)); ty++)
+      for (var tx = Math.floor(left / ts); tx <= Math.floor((left + w) / ts); tx++) {
+        var img = tile(z, ((tx % n) + n) % n, ty);
+        if (img) ctx.drawImage(img, tx * ts - left, ty * ts - top, ts + 0.5, ts + 0.5);
+      }
+    ctx.fillStyle = "rgba(6,11,21,.45)"; ctx.fillRect(0, 0, w, h);
+  }
+  $("attribution").style.display = streets ? "block" : "none";
+  ctx.lineWidth = 1; ctx.font = "11px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  if (state.home) {
+    ctx.setLineDash([5, 5]); ctx.strokeStyle = "rgba(75,106,150,.75)";
+    (state.rings || []).forEach(function (ring) {
+      ctx.beginPath();
+      for (var b = 0; b <= 360; b += 6) { var g = dest(state.home[0], state.home[1], ring.km, b), p = toScreen(g[0], g[1]); b ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]); }
+      ctx.stroke();
+      var lp = dest(state.home[0], state.home[1], ring.km, 45), ls = toScreen(lp[0], lp[1]);
+      ctx.fillStyle = "#9db4d6"; ctx.fillText(ring.label, ls[0], ls[1]);
+    });
+    ctx.setLineDash([]);
+  }
+  (state.zones || []).forEach(function (zone) {
+    ctx.beginPath();
+    zone.points.forEach(function (pt, i) { var p = toScreen(pt[0], pt[1]); i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]); });
+    ctx.closePath(); ctx.fillStyle = "rgba(167,139,250,.13)"; ctx.fill(); ctx.strokeStyle = "rgba(167,139,250,.85)"; ctx.stroke();
+  });
+  if (state.home) {
+    var hp = toScreen(state.home[0], state.home[1]);
+    ctx.fillStyle = "#f1f5ff"; ctx.beginPath(); ctx.moveTo(hp[0], hp[1] - 7); ctx.lineTo(hp[0] + 6, hp[1] + 5); ctx.lineTo(hp[0] - 6, hp[1] + 5); ctx.closePath(); ctx.fill();
+  }
+  var labelsOn = view.zoom >= 8 || state.targets.length <= 12, boxes = [];
+  state.targets.forEach(function (t) {
+    if (t.lat == null) return;
+    var p = toScreen(t.lat, t.lon), c = colorOf(t);
+    if (t.trail && t.trail.length > 1) {
+      ctx.beginPath(); ctx.strokeStyle = c; ctx.globalAlpha = .55; ctx.lineWidth = 1.5;
+      t.trail.forEach(function (pt, i) { var q = toScreen(pt[0], pt[1]); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); });
+      ctx.lineTo(p[0], p[1]); ctx.stroke(); ctx.globalAlpha = 1;
+    }
+    if (p[0] < -30 || p[1] < -30 || p[0] > w + 30 || p[1] > h + 30) return;
+    hits.push([t.k, p[0], p[1]]);
+    ctx.save(); ctx.translate(p[0], p[1]);
+    if (t.k === selected || t.emg) { ctx.beginPath(); ctx.arc(0, 0, 16, 0, 7); ctx.strokeStyle = t.emg ? "#ff5f6d" : "#fff"; ctx.lineWidth = 2; ctx.stroke(); }
+    ctx.fillStyle = c; ctx.strokeStyle = "#050b16"; ctx.lineWidth = 1.2;
+    if (t.hdg == null) { ctx.beginPath(); t.kind === "vessel" ? ctx.rect(-5, -5, 10, 10) : ctx.arc(0, 0, 5.5, 0, 7); }
+    else {
+      ctx.rotate(t.hdg * Math.PI / 180); ctx.beginPath();
+      if (t.kind === "vessel") { ctx.moveTo(0, -10); ctx.lineTo(4.6, -4); ctx.lineTo(4.6, 8.5); ctx.lineTo(-4.6, 8.5); ctx.lineTo(-4.6, -4); }
+      else { ctx.moveTo(0, -11); ctx.lineTo(2, -3); ctx.lineTo(10, 3); ctx.lineTo(10, 5); ctx.lineTo(2, 3); ctx.lineTo(1.5, 8); ctx.lineTo(4.5, 10.5); ctx.lineTo(0, 10); ctx.lineTo(-4.5, 10.5); ctx.lineTo(-1.5, 8); ctx.lineTo(-2, 3); ctx.lineTo(-10, 5); ctx.lineTo(-10, 3); ctx.lineTo(-2, -3); }
+      ctx.closePath();
+    }
+    ctx.fill(); ctx.stroke(); ctx.restore();
+    if (labelsOn || t.k === selected || t.emg) {
+      ctx.font = "600 12px sans-serif"; ctx.textAlign = "left";
+      var tw = ctx.measureText(t.l).width, box = [p[0] + 13, p[1] - 9, tw + 10, 18];
+      var clash = boxes.some(function (b) { return box[0] < b[0] + b[2] && b[0] < box[0] + box[2] && box[1] < b[1] + b[3] && b[1] < box[1] + box[3]; });
+      if (!clash || t.k === selected || t.emg) {   // crowded spots keep one label; tap a target for the rest
+        boxes.push(box);
+        ctx.fillStyle = "rgba(12,22,40,.85)"; ctx.fillRect(box[0], box[1], box[2], box[3]);
+        ctx.fillStyle = "#e8eef8"; ctx.fillText(t.l, p[0] + 18, p[1] + 1);
+      }
+      ctx.textAlign = "center";
+    }
+  });
+}
+function centerHome() {
+  if (state && state.home) { view.lat = state.home[0]; view.lon = state.home[1]; }
+  else if (state && state.targets.length && state.targets[0].lat != null) { view.lat = state.targets[0].lat; view.lon = state.targets[0].lon; }
+  draw();
+}
+function find(key) { return state ? state.targets.filter(function (t) { return t.k === key; })[0] : null; }
+function showSheet() {
+  var t = find(selected), sheet = $("sheet");
+  if (!t) { sheet.style.display = "none"; return; }
+  $("sheetTitle").textContent = t.l; $("sheetSub").textContent = t.sub || "";
+  var tags = "";
+  if (t.emg) tags += '<span class="tag red">SQUAWK ' + esc(t.sq) + " · " + esc(t.emg).toUpperCase() + "</span>";
+  if (t.ph) tags += '<span class="tag">' + esc(t.ph) + "</span>";
+  if (t.sim) tags += '<span class="tag">Simulation</span>';
+  if (t.stale) tags += '<span class="tag">Position older than 60 s</span>';
+  $("sheetTags").innerHTML = tags;
+  var cells = t.kind === "vessel"
+    ? [["SPEED", num(t.spd, 1) + " kn"], ["COURSE", t.hdg == null ? "—" : num(t.hdg) + "°"], ["DISTANCE", t.dist == null ? "—" : num(t.dist, 1) + " " + state.units]]
+    : [["ALTITUDE", num(t.alt) + " ft"], ["SPEED", num(t.spd) + " kn"], ["DISTANCE", t.dist == null ? "—" : num(t.dist, 1) + " " + state.units],
+       ["HEADING", t.hdg == null ? "—" : num(t.hdg) + "°"], ["BEARING", t.brg == null ? "—" : num(t.brg) + "°"], ["SQUAWK", t.sq || "—"]];
+  $("sheetGrid").innerHTML = cells.map(function (c) { return '<div class="cell"><small>' + c[0] + "</small><span>" + esc(c[1]) + "</span></div>"; }).join("");
+  sheet.style.display = "block";
+}
+function select(key, center) {
+  selected = key; var t = find(key);
+  if (t && center && t.lat != null) { view.lat = t.lat; view.lon = t.lon; setView("map"); }
+  showSheet(); draw();
+}
+function renderLists() {
+  var rows = state.targets.slice().sort(function (a, b) { return (a.dist == null ? 1e9 : a.dist) - (b.dist == null ? 1e9 : b.dist); });
+  $("list").innerHTML = rows.length ? rows.map(function (t) {
+    return '<div class="row" data-key="' + esc(t.k) + '"><span class="dot" style="background:' + colorOf(t) + '"></span><div><div class="name">' + esc(t.l) +
+      '</div><div class="sub">' + esc(t.sub || "") + (t.ph ? " · " + esc(t.ph) : "") + '</div></div><div class="right">' +
+      (t.kind === "vessel" ? num(t.spd, 1) + " kn" : num(t.alt) + " ft") + '<div class="sub">' + (t.dist == null ? "no range" : num(t.dist, 1) + " " + state.units) + "</div></div></div>";
+  }).join("") : '<div class="empty">' + (state.running ? "Listening… no targets yet." : "Monitoring is stopped on the computer.") + "</div>";
+  $("alerts").innerHTML = (state.alerts || []).length ? state.alerts.map(function (a) {
+    return '<div class="row" data-key="' + esc(a.key) + '"><span class="dot" style="background:var(--alert)"></span><div><div class="name">' + esc(a.text) +
+      '</div><div class="sub">' + esc(a.day) + " " + esc(a.time) + "</div></div></div>";
+  }).join("") : '<div class="empty">No alerts yet.</div>';
+}
+function setView(name) {
+  ["map", "list", "alerts"].forEach(function (v) { $(v).classList.toggle("on", v === name); });
+  Array.prototype.forEach.call(document.querySelectorAll("nav button"), function (b) { b.classList.toggle("on", b.dataset.view === name); });
+  if (name === "map") resize();
+}
+function setStatus() {
+  var pill = $("status"), lost = Date.now() - lastOk > 8000;
+  if (unpaired) { pill.className = "pill"; pill.textContent = "NOT PAIRED"; return; }
+  pill.className = "pill " + (lost ? "lost" : !state || !state.running ? "" : state.source === "Simulation" ? "sim" : "live");
+  pill.textContent = lost ? "NO CONNECTION" : !state ? "…" : state.running ? state.source.toUpperCase() + " · " + state.rate + " msg/s" : "STOPPED";
+  if (state) $("counts").textContent = state.counts.aircraft + " air · " + state.counts.vessels + " sea";
+}
+function poll() {
+  fetch("/api/state", { credentials: "same-origin", cache: "no-store" }).then(function (r) {
+    if (r.status === 401) { $("pair").style.display = "flex"; unpaired = true; throw new Error("pair"); }
+    unpaired = false;
+    if (!r.ok) throw new Error("http");
+    return r.json();
+  }).then(function (s) {
+    $("pair").style.display = "none"; state = s; lastOk = Date.now();
+    if (streets === null) { streets = !!s.tiles; $("streets").classList.toggle("active", streets); }
+    if (!view.set) { view.set = true; view.zoom = 8.5; centerHome(); }
+    setStatus(); renderLists(); if (selected) showSheet(); draw();
+  }).catch(function () { setStatus(); }).then(function () { setTimeout(poll, 2000); });
+}
+// Input: drag to pan, pinch or buttons to zoom, tap to select
+var pointers = {}, moved = false, pinch = 0;
+canvas.addEventListener("pointerdown", function (e) { canvas.setPointerCapture(e.pointerId); pointers[e.pointerId] = [e.clientX, e.clientY]; moved = false; pinch = 0; });
+canvas.addEventListener("pointermove", function (e) {
+  var p = pointers[e.pointerId]; if (!p) return;
+  var ids = Object.keys(pointers);
+  if (ids.length === 1) {
+    var dx = e.clientX - p[0], dy = e.clientY - p[1];
+    if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
+    var c = toGeo(canvas.clientWidth / 2 - dx, canvas.clientHeight / 2 - dy); view.lat = c[0]; view.lon = c[1];
+  }
+  pointers[e.pointerId] = [e.clientX, e.clientY];
+  if (ids.length === 2) {
+    var a = pointers[ids[0]], b = pointers[ids[1]], d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+    if (pinch) view.zoom = Math.max(2, Math.min(17, view.zoom + Math.log2(d / pinch)));
+    pinch = d; moved = true;
+  }
+  draw();
+});
+function up(e) {
+  var p = pointers[e.pointerId]; delete pointers[e.pointerId]; pinch = 0;
+  if (!p || moved || e.type === "pointercancel") return;
+  var r = canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, best = "", bd = 26;
+  hits.forEach(function (hit) { var d = Math.hypot(hit[1] - x, hit[2] - y); if (d < bd) { bd = d; best = hit[0]; } });
+  select(best, false);
+}
+canvas.addEventListener("pointerup", up); canvas.addEventListener("pointercancel", up);
+canvas.addEventListener("wheel", function (e) { e.preventDefault(); view.zoom = Math.max(2, Math.min(17, view.zoom - e.deltaY / 400)); draw(); }, { passive: false });
+$("zoomIn").onclick = function () { view.zoom = Math.min(17, view.zoom + 1); draw(); };
+$("zoomOut").onclick = function () { view.zoom = Math.max(2, view.zoom - 1); draw(); };
+$("home").onclick = centerHome;
+$("streets").onclick = function () { streets = !streets; this.classList.toggle("active", streets); draw(); };
+$("closeSheet").onclick = function () { select("", false); };
+Array.prototype.forEach.call(document.querySelectorAll("nav button"), function (b) { b.onclick = function () { setView(b.dataset.view); }; });
+["list", "alerts"].forEach(function (id) { $(id).addEventListener("click", function (e) {
+  var row = e.target.closest(".row"); if (row && row.dataset.key && find(row.dataset.key)) select(row.dataset.key, true);
+}); });
+function pair() {
+  var code = $("code").value.replace(/\D/g, "");
+  fetch("/api/pair", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: code }) })
+    .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Pairing failed."); }); })
+    .then(function () { $("pairError").textContent = ""; $("code").value = ""; $("pair").style.display = "none"; })
+    .catch(function (err) { $("pairError").textContent = err.message; });
+}
+$("pairButton").onclick = pair;
+$("code").addEventListener("keydown", function (e) { if (e.key === "Enter") pair(); });
+window.addEventListener("resize", resize);
+resize(); poll(); setInterval(setStatus, 2000);
+</script>
+</body>
+</html>

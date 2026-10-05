@@ -1,0 +1,3 @@
+PySide6-Essentials==6.11.2
+pyais==3.2.3
+pyModeS==3.6.0

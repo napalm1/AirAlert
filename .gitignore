@@ -1,0 +1,22 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Build output (the installer is published as a GitHub Release, not in the repository)
+build/
+dist/
+release/
+AirAlert.spec
+
+# Scratch output from tests, screenshots and benchmarks
+test-output/
+
+# Never commit personal data: settings, history, logs, backups
+settings.json
+*.sqlite-wal
+*.sqlite-shm
+history.sqlite
+AirAlert.log*
+AirAlert-backup-*.zip
