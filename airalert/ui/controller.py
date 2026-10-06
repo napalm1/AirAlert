@@ -82,6 +82,12 @@ def _parse_time(text, default):
     raise ValueError(f'Use YYYY-MM-DD HH:MM for dates (got “{text}”).')
 
 
+def format_coordinate(lat, lon):
+    """34.0522°N 118.2437°W"""
+    return (f'{abs(lat):.4f}°{"N" if lat >= 0 else "S"} '
+            f'{abs(lon):.4f}°{"E" if lon >= 0 else "W"}')
+
+
 def _comparable(value):
     """A stored setting in comparable form: numbers by value (60 == 60.0 == '60'), text trimmed and case-folded."""
     try:
@@ -1413,6 +1419,10 @@ class Controller(QObject):
                 self.toast.emit(startup_error, 'error')
         self.config.values['start_with_windows'] = startup.is_enabled()
         self.config.save()
+        self._settings_applied(old_home)
+        return ''
+
+    def _settings_applied(self, old_home):
         self._mode_choice = self.config['mode']
         self.tiles.set_enabled(self.config['tiles'])
         self.settingsChanged.emit()
@@ -1422,6 +1432,23 @@ class Controller(QObject):
         if self.config['home'] and self.config['home'] != old_home and self.map is not None:
             self.map.centerOnZoom(self.config['home'][0], self.config['home'][1], 9)
         self.refresh()
+
+    @Slot(float, float, result=str)
+    def setHome(self, lat, lon):
+        """Set the station (home) location, e.g. from a right-click on the map. Returns '' or an error."""
+        try:
+            lat, lon = float(lat), float(lon)
+        except (TypeError, ValueError):
+            return 'That point has no usable coordinates.'
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180) or lat != lat or lon != lon:
+            return 'That point is outside the map.'
+        old_home = self.config['home']
+        error = self.station.save_settings(dict(home=[round(lat, 6), round(lon, 6)]))
+        if error:
+            self.toast.emit(error, 'error')
+            return error
+        self._settings_applied(old_home)
+        self.toast.emit(f'Station location set to {format_coordinate(lat, lon)}', 'success')
         return ''
 
     @Slot()

@@ -235,8 +235,8 @@ def test_flight_phase_tags():
 def test_real_airport_index_finds_the_nearest_airport():
     from airalert import airports
     index = airports.load()
-    found = index.nearest(38.509, -122.813)            # on top of Santa Rosa (KSTS)
-    assert found is not None and index.codes[found[0]] == 'KSTS' and found[1] < 1.5
+    found = index.nearest(33.9425, -118.408)           # on top of Los Angeles International (KLAX)
+    assert found is not None and index.codes[found[0]] == 'KLAX' and found[1] < 1.5
     assert index.nearest(30.0, -140.0, 30) is None     # mid-Pacific
 
 

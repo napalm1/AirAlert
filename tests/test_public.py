@@ -194,3 +194,55 @@ def test_update_feed_is_configured_but_switched_off_for_tests(ui):
     assert UPDATE_URL.startswith('https://github.com/') and UPDATE_URL.endswith('/latest.json')
     controller = ui['controller']
     assert controller.update_url == '' and controller.property('updateInfo')['configured'] is False
+
+
+def scene_point(item, x, y):
+    from PySide6.QtCore import QPoint, QPointF
+    p = item.mapToScene(QPointF(x, y))
+    return QPoint(round(p.x()), round(p.y()))
+
+
+def test_right_click_on_the_map_sets_the_station(ui):
+    from PySide6.QtCore import QMetaObject, QObject, Qt
+    from PySide6.QtTest import QTest
+    controller, window = ui['controller'], ui['window']
+    window.setProperty('page', 0)
+    pump(200)
+    item = controller.map
+    menu = window.findChild(QObject, 'mapContextMenu')
+    assert menu is not None and not menu.property('visible')
+    toasts = []
+    controller.toast.connect(lambda text, kind: toasts.append((text, kind)))
+    x, y = item.width() * 0.6, item.height() * 0.55
+    expected = item.coordinate(x, y)
+    QTest.mouseClick(window, Qt.MouseButton.RightButton, Qt.KeyboardModifier.NoModifier, scene_point(item, x, y))
+    assert wait_until(lambda: menu.property('visible'))
+    got = (menu.property('lat'), menu.property('lon'))   # the click lands on whole pixels, hence the tolerance
+    assert got == (pytest.approx(expected[0], abs=0.01), pytest.approx(expected[1], abs=0.01))
+    shown = texts(window)
+    assert any('Set station here' in t for t in shown) and any('°N' in t and '°W' in t for t in shown)
+    QMetaObject.invokeMethod(menu, 'setStation')
+    assert wait_until(lambda: not menu.property('visible'))
+    assert controller.config['home'] == [round(got[0], 6), round(got[1], 6)]
+    assert controller.property('homeSet') and toasts and toasts[-1][0].startswith('Station location set to ')
+    assert toasts[-1][0].endswith('°W') and toasts[-1][1] == 'success'
+    assert (item.property('centerLat'), item.property('centerLon')) == (pytest.approx(got[0], abs=1e-5),
+                                                                        pytest.approx(got[1], abs=1e-5))
+
+    # A right-button drag pans without opening the menu; while drawing a geofence it undoes a point instead.
+    start = scene_point(item, x, y)
+    QTest.mousePress(window, Qt.MouseButton.RightButton, Qt.KeyboardModifier.NoModifier, start)
+    QTest.mouseMove(window, scene_point(item, x + 60, y + 40))
+    QTest.mouseRelease(window, Qt.MouseButton.RightButton, Qt.KeyboardModifier.NoModifier, scene_point(item, x + 60, y + 40))
+    pump(100)
+    assert not menu.property('visible')
+    controller.beginZone()
+    item.vertices.append(item.coordinate(x, y))
+    QTest.mouseClick(window, Qt.MouseButton.RightButton, Qt.KeyboardModifier.NoModifier, scene_point(item, x, y))
+    pump(100)
+    assert not menu.property('visible') and item.vertices == []
+    controller.cancelZone()
+    assert controller.setHome(95, 0) == 'That point is outside the map.'
+    assert controller.setHome('x', 0) == 'That point has no usable coordinates.'
+    controller.setHome(HOME[0], HOME[1])
+    assert not warnings(ui), ui['capture'].records

@@ -16,7 +16,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
-HOME = [38.4, -122.8]
+HOME = [34.05, -118.25]
 SIGHTINGS = int(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1].isdigit() else 20000
 POSITIONS_PER = 20
 

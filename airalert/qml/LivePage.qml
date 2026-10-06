@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Layouts
 import AirAlert.Map 1.0
 import "Util.js" as Util
 
@@ -91,6 +92,62 @@ Item {
     HoverCard {
         mapItem: map
         z: 5
+    }
+
+    // Right-click anywhere on the map: set the station there, or center on the point.
+    Connections {
+        target: map
+        function onContextRequested(x, y, lat, lon) { mapMenu.show(x, y, lat, lon) }
+    }
+    Popover {
+        id: mapMenu
+        objectName: "mapContextMenu"
+        property real lat: 0
+        property real lon: 0
+        title: "Map point"
+        width: 300
+        z: 6
+        function show(px, py, latitude, longitude) {
+            lat = latitude; lon = longitude
+            x = Math.max(8, Math.min(px + map.x + 6, live.width - width - 8))
+            y = Math.max(8, Math.min(py + map.y + 6, live.height - height - 8))
+            open()
+        }
+        function setStation() {
+            if (app.setHome(lat, lon) === "") close()
+        }
+        Text {
+            objectName: "mapMenuCoordinates"
+            Layout.fillWidth: true
+            text: Util.coordinate(mapMenu.lat, mapMenu.lon)
+            color: Theme.text
+            font.pixelSize: 14
+            font.weight: Font.DemiBold
+        }
+        Text {
+            Layout.fillWidth: true
+            text: app.homeSet ? "Setting the station here moves home: distances, bearings, range rings, proximity alerts and coverage all measure from it."
+                              : "AirAlert has no station location yet. Distances, range rings and proximity alerts need one."
+            color: Theme.muted
+            font.pixelSize: 12
+            wrapMode: Text.WordWrap
+        }
+        AButton {
+            objectName: "setStationButton"
+            Layout.fillWidth: true
+            text: app.homeSet ? "Set station here" : "Set my station here"
+            iconName: "home"
+            variant: "primary"
+            compact: true
+            onClicked: mapMenu.setStation()
+        }
+        AButton {
+            Layout.fillWidth: true
+            text: "Center map here"
+            iconName: "pin"
+            compact: true
+            onClicked: { map.centerOn(mapMenu.lat, mapMenu.lon); mapMenu.close() }
+        }
     }
 
     AirportCard {

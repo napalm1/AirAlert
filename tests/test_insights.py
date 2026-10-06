@@ -25,7 +25,7 @@ from airalert import aircraftdb, insights  # noqa: E402
 from airalert.core.database import Database  # noqa: E402
 from airalert.core.models import Target, destination, distance_bearing  # noqa: E402
 
-HOME = (38.4, -122.8)
+HOME = (34.05, -118.25)
 OPENSKY_HEADER = ['icao24', 'registration', 'manufacturericao', 'manufacturername', 'model', 'typecode',
                   'serialnumber', 'linenumber', 'icaoaircrafttype', 'operator', 'operatorcallsign', 'operatoricao',
                   'operatoriata', 'owner', 'testreg', 'registered', 'reguntil', 'status', 'built', 'firstflightdate',

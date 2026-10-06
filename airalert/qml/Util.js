@@ -25,6 +25,11 @@ function altitudeColor(altitude, stops, unknown) {
     return stops[stops.length - 1].color
 }
 
+function coordinate(lat, lon) {
+    return Math.abs(lat).toFixed(4) + "°" + (lat >= 0 ? "N" : "S") + " "
+         + Math.abs(lon).toFixed(4) + "°" + (lon >= 0 ? "E" : "W")
+}
+
 function number(value, digits) {
     if (value === undefined || value === null || value === "")
         return "—"

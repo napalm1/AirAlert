@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 os.environ.setdefault('QT_QUICK_BACKEND', 'software')
 PROFILE = '--profile' in sys.argv
-HOME = [38.4, -122.8]
+HOME = [34.05, -118.25]
 TARGETS = 300
 
 

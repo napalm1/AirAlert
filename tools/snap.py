@@ -31,7 +31,7 @@ def main():
     data.mkdir(parents=True)
     os.environ['AIRALERT_DATA'] = str(data)
     os.environ['AIRALERT_UPDATE_URL'] = 'off'
-    settings = dict(home=[38.4, -122.8], units='mi', mode='Simulation', setup_done=True, sample_seconds=1,
+    settings = dict(home=[34.05, -118.25], units='mi', mode='Simulation', setup_done=True, sample_seconds=1,
                     theme='Dark', map_theme='Follow app', tiles=False,
                     rules=[dict(id='r1', name='Aircraft proximity', enabled=True, kind='aircraft', field='registration',
                                 value='', condition='enter', threshold=40.2336, zone='', cooldown=60, sound=False,
@@ -40,8 +40,8 @@ def main():
                                 condition='zone_enter', threshold=0, zone='Harbor', cooldown=120, sound=False,
                                 desktop=False)],
                     watchlist=[dict(kind='aircraft', name='Demo Cessna', identifier='N123AB', notes='Club aircraft')],
-                    geofences=[dict(name='Harbor', points=[[38.43, -122.87], [38.45, -122.78], [38.39, -122.76],
-                                                           [38.37, -122.84]])])
+                    geofences=[dict(name='Harbor', points=[[34.08, -118.32], [34.10, -118.23], [34.04, -118.21],
+                                                           [34.02, -118.29]])])
     (data / 'settings.json').write_text(json.dumps(settings), 'utf-8')
     import logging
     logging.basicConfig(level=logging.INFO, stream=sys.stdout, format='%(levelname)s %(name)s: %(message)s')
@@ -96,7 +96,7 @@ def main():
             controller.openTrack(0)
         if name == 'zone':
             controller.beginZone()
-            for lat, lon in ((38.55, -122.95), (38.6, -122.7), (38.45, -122.62)):
+            for lat, lon in ((34.20, -118.40), (34.25, -118.15), (34.10, -118.07)):
                 controller.map.vertices.append((lat, lon))
             controller.map.drawingChanged.emit()
             controller.map.update()

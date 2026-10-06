@@ -201,6 +201,7 @@ class _Occupancy:
 class MapCanvas(QQuickPaintedItem):
     targetClicked = Signal(str)
     backgroundClicked = Signal()
+    contextRequested = Signal(float, float, float, float)   # x, y, latitude, longitude of a right-click
     zoneFinished = Signal('QVariantList')
     viewChanged = Signal()
     drawingChanged = Signal()
@@ -623,6 +624,9 @@ class MapCanvas(QQuickPaintedItem):
             elif self._airport_hit(pos) is None:
                 # A click on an airport only shows its card; it never changes the selection.
                 self.backgroundClicked.emit()
+        elif e.button() == Qt.MouseButton.RightButton and self._point_visible(pos):
+            lat, lon = self.coordinate(pos.x(), pos.y())
+            self.contextRequested.emit(pos.x(), pos.y(), lat, lon)
         e.accept()
 
     def mouseDoubleClickEvent(self, e):

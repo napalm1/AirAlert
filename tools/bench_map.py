@@ -30,7 +30,7 @@ def main():
     if airports.load() is None:
         raise SystemExit('airport data missing: run python -m airalert.airports')
     print(f'airport data loaded in {(time.perf_counter() - started) * 1000:.0f} ms (background thread in the app)')
-    home = (38.4, -122.8)
+    home = (34.05, -118.25)
     now = time.time()
     targets = []
     for i in range(100):
@@ -84,7 +84,7 @@ def main():
               f'   refresh avg {sum(refresh) / len(refresh):5.1f} ms')
 
     # The airport layer alone at busy views (no targets): with minus without.
-    for name, lat, lon, zoom in (('NE US majors', 40.2, -76.0, 6.2), ('Bay Area', 38.0, -122.4, 9),
+    for name, lat, lon, zoom in (('NE US majors', 40.2, -76.0, 6.2), ('Los Angeles', 34.0, -118.2, 9),
                                  ('LA heliports', 34.05, -118.3, 11.5)):
         costs, drawn = {}, 0
         for on in (True, False):

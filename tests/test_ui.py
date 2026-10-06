@@ -8,7 +8,7 @@ import pytest
 
 from airalert.core.models import destination
 
-HOME = [38.4, -122.8]
+HOME = [34.05, -118.25]
 
 
 class QmlLog(logging.Handler):

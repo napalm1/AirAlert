@@ -13,7 +13,7 @@ from airalert.core.database import Database
 from airalert.core.models import Target, destination, distance_bearing
 from airalert.playback import MAX_GAP, PlaybackData, auto_speed
 
-HOME = [38.4, -122.8]
+HOME = [34.05, -118.25]
 
 
 class LogCapture(logging.Handler):
@@ -100,18 +100,18 @@ def mine(capture):
 def test_airport_index_tiers_codes_and_frequencies():
     index = airports.load()
     assert index is not None and len(index) > 50000
-    ksts = index.info(index.find('KSTS'))
-    assert ksts['tier'] == airports.MAJOR and ksts['iata'] == 'STS' and ksts['city'] == 'Santa Rosa'
-    assert [f['kind'] for f in ksts['freqs']][:2] == ['TWR', 'ATIS'] and len(ksts['freqs']) <= 4
-    assert ksts['freqs'][0]['mhz'] == '118.500'
+    klax = index.info(index.find('KLAX'))
+    assert klax['tier'] == airports.MAJOR and klax['iata'] == 'LAX' and klax['city'] == 'Los Angeles'
+    assert [f['kind'] for f in klax['freqs']][:2] == ['TWR', 'ATIS'] and len(klax['freqs']) <= 4
+    assert klax['freqs'][0]['mhz'] == '119.800'
     heliports = [i for i in range(len(index)) if index.tiers[i] == airports.HELIPORT]
     assert heliports and all('heli' in index.names[i].lower() for i in heliports[:200])
     assert all(index.iatas[i] for i in range(len(index)) if index.tiers[i] == airports.MAJOR)
-    near = index.query(airports.MAJOR, 38.0, 39.0, -123.2, -122.2)
-    assert index.find('KSTS') in near and near == sorted(near)
+    near = index.query(airports.MAJOR, 33.5, 34.5, -118.9, -117.9)
+    assert index.find('KLAX') in near and near == sorted(near)
     # Date line: a box from 179E to 179W still finds Fiji-area fields on both sides.
     assert index.query(airports.OTHER, -20, -15, 179, -179) == sorted(index.query(airports.OTHER, -20, -15, 179, -179))
-    assert airports.display_code('US-1234', 'ABC') == 'ABC' and airports.display_code('kSts', 'STS') == 'KSTS'
+    assert airports.display_code('US-1234', 'ABC') == 'ABC' and airports.display_code('kLax', 'LAX') == 'KLAX'
 
 
 def test_airport_build_from_ourairports_csv(tmp_path):
@@ -137,7 +137,7 @@ def test_airport_build_from_ourairports_csv(tmp_path):
 
 
 # -------------------------------------------------------------- map geometry
-def make_target(ident='A00001', lat=38.5, lon=-122.8, now=None, **data):
+def make_target(ident='A00001', lat=34.1, lon=-118.25, now=None, **data):
     now = time.time() if now is None else now
     t = Target('aircraft', ident, now - 60, now, dict(lat=lat, lon=lon, **data))
     t.position_time = now
@@ -169,7 +169,7 @@ def test_heading_lines_are_geodesic_and_skip_stale_or_still_targets(ui):
     assert d == pytest.approx(240 * 1.852 / 60 * 5, rel=1e-6) and b == pytest.approx(90, abs=0.2)
     assert entry['geo'][2] == pytest.approx(destination(t.position, 240 * 1.852 / 60 * 2, 90.0))
     assert canvas._heading_state(t, now, 5) is entry  # cached while the target is unchanged
-    vessel = Target('vessel', '1', now, now, dict(lat=38.4, lon=-122.8, heading=10.0, course=200.0, speed=10.0))
+    vessel = Target('vessel', '1', now, now, dict(lat=34.05, lon=-118.25, heading=10.0, course=200.0, speed=10.0))
     vessel.position_time = now
     assert distance_bearing(vessel.position, canvas._heading_state(vessel, now, 2)['geo'][-1])[1] == \
         pytest.approx(200, abs=0.2)  # vessels follow course over ground
@@ -193,7 +193,7 @@ def test_coverage_rose_geometry(ui):
     assert geo and tuple(HOME) in geo['geo']  # the empty sector folds back to the station
     ranges = [distance_bearing(HOME, p) for p in geo['geo'] if p != tuple(HOME)]
     assert all(r == pytest.approx(50, rel=1e-6) for r, _ in ranges)
-    assert not any(30 < b < 40 for _, b in ranges)
+    assert not any(30.001 < b < 39.999 for _, b in ranges)   # the sector edges themselves sit at 30 and 40
     canvas.set_scene(dict(targets=[], layers={}, coverage=dict(home=HOME, sectors=[None] * 36)))
     assert canvas._coverage_geo() is None
 
@@ -237,13 +237,13 @@ def test_scope_trails_are_exact_azimuthal_projections(ui):
     canvas.setWidth(900)
     canvas.setHeight(700)
     canvas.set_scene(dict(targets=[t], layers={}, trail_minutes=15, map_theme='Scope only', now=now))
-    canvas.centerOnZoom(38.2, -122.5, 8)
+    canvas.centerOnZoom(34.0, -118.2, 8)
     polys = canvas._scope_trail_polys(t, now)
     assert [band for band, _ in polys] == [3, 4, 5]  # 400 s of trail fills the newest half of 15 min
     samples = {ts: (lat, lon) for ts, lat, lon in t.trail}
     simp = canvas._trail_poly_cache[t.key]
     for ts, q in zip(simp['ts'], [q for _, poly in polys[:1] for q in poly]):
-        d, b = distance_bearing((38.2, -122.5), samples[ts])
+        d, b = distance_bearing((34.0, -118.2), samples[ts])
         assert q.x() == pytest.approx(d * math.sin(math.radians(b)), abs=1e-6)
         assert q.y() == pytest.approx(-d * math.cos(math.radians(b)), abs=1e-6)
 
@@ -275,7 +275,7 @@ def test_paint_every_layer_in_map_and_scope(ui):
         painter = QPainter(image)
         canvas.paint(painter)
         painter.end()
-        assert canvas._airport_hits, style  # KSTS and neighbors are drawn
+        assert canvas._airport_hits, style  # KLAX and neighbors are drawn
         assert len(canvas._hits) == 12
     assert len(canvas.property('emergencyPoints')) == 1
     assert len(mine(capture)) == before, capture.records
@@ -304,16 +304,16 @@ def test_airport_hover_card_and_click_keeps_selection(ui):
     target = next(iter(controller.station.store.targets.values()))
     controller.selectTarget(target.key)
     item = controller.map
-    item.centerOnZoom(38.509, -122.813, 11)  # KSTS
+    item.centerOnZoom(33.9425, -118.408, 11)  # KLAX
     window.grabWindow()
     index = airports.get()
-    ksts = index.find('KSTS')
-    hit = next(h for h in item._airport_hits if h[2] == ksts)
+    klax = index.find('KLAX')
+    hit = next(h for h in item._airport_hits if h[2] == klax)
     assert not item._hit(QPoint(round(hit[0]), round(hit[1])))  # no target on top of the airport
     QTest.mouseMove(window, scene_point(item, hit[0], hit[1]))
     pump(50)
     info = item.property('airportInfo')
-    assert info['code'] == 'KSTS' and info['name'].startswith('Charles M. Schulz')
+    assert info['code'] == 'KLAX' and info['name'].startswith('Los Angeles International')
     card = find(window, lambda o: o.metaObject().className().startswith('AirportCard'))
     assert card is not None and card.property('visible')
     QTest.mouseClick(window, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier,
@@ -425,10 +425,10 @@ def history_db(path, now=10_000.0):
     rows = []
     # Aircraft flying north at ~216 kn with 10 s samples, then a 10-minute gap.
     for i in range(30):
-        rows.append(('aircraft:ABC123', now + i * 10, 38.0 + i * 0.01, -122.0, 5000 + i * 10, None, None, 0))
-    rows.append(('aircraft:ABC123', now + 900, 38.5, -122.0, 7000, 200, None, 0))
+        rows.append(('aircraft:ABC123', now + i * 10, 34.0 + i * 0.01, -118.0, 5000 + i * 10, None, None, 0))
+    rows.append(('aircraft:ABC123', now + 900, 34.5, -118.0, 7000, 200, None, 0))
     for i in range(20):
-        rows.append(('sim/vessel:990000001', now + 100 + i * 30, 37.0, -122.5 + i * 0.001, None, 8.0, None, 1))
+        rows.append(('sim/vessel:990000001', now + 100 + i * 30, 33.5, -118.5 + i * 0.001, None, 8.0, None, 1))
     db.conn.executemany('INSERT INTO positions(key,time,lat,lon,altitude,speed,distance,simulated) '
                         'VALUES(?,?,?,?,?,?,?,?)', rows)
     db.conn.executemany('INSERT INTO sightings VALUES(?,?,?,?,?,?,?,1)', [
@@ -450,7 +450,7 @@ def test_playback_data_positions_trails_and_derived_motion(tmp_path):
     shown = data.targets_at(now + 95, trail_minutes=1)
     aircraft = next(t for t in shown if t.kind == 'aircraft')
     assert aircraft.key == 'aircraft:ABC123' and aircraft.label == 'TEST1'
-    assert aircraft.position == pytest.approx((38.09, -122.0))  # last sample at or before t
+    assert aircraft.position == pytest.approx((34.09, -118.0))  # last sample at or before t
     assert aircraft.position_time == aircraft.last_seen == now + 90 and aircraft.first_seen == now
     assert aircraft.data['altitude'] == 5090 and aircraft.data['squawk'] == '7700'
     assert aircraft.data['heading'] == pytest.approx(0, abs=0.5)  # derived: flying north, not the stored 270

@@ -385,7 +385,7 @@ def test_dialog_renders_results_without_qml_warnings(qapp, tmp_path):
     from PySide6.QtQml import QQmlComponent
     folder = tmp_path / 'data'
     folder.mkdir()
-    (folder / 'settings.json').write_text(json.dumps(dict(home=[38.4, -122.8], mode='Aircraft', setup_done=True,
+    (folder / 'settings.json').write_text(json.dumps(dict(home=[34.05, -118.25], mode='Aircraft', setup_done=True,
                                                           gain='40')), 'utf-8')
     previous = os.environ.get('AIRALERT_DATA')
     os.environ['AIRALERT_DATA'] = str(folder)

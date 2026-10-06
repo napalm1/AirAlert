@@ -74,7 +74,7 @@ def main():
     os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
     os.environ.setdefault('QT_QUICK_BACKEND', 'software')
     os.environ.setdefault('QT_QPA_FONTDIR', r'C:\Windows\Fonts')
-    (data / 'settings.json').write_text(json.dumps(dict(home=[38.4, -122.8], mode='Aircraft', setup_done=True,
+    (data / 'settings.json').write_text(json.dumps(dict(home=[34.05, -118.25], mode='Aircraft', setup_done=True,
                                                         theme='Dark', gain='40')), 'utf-8')
     import logging
     logging.basicConfig(level=logging.WARNING, stream=sys.stdout, format='%(levelname)s %(name)s: %(message)s')
