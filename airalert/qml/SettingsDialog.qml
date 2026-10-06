@@ -16,7 +16,8 @@ AModal {
     property string folder: ""
     property string backupStatus: ""
     // Form state
-    property string mode: "Simulation"
+    property string mode: "Aircraft"
+    property bool showSimulation: false
     property string units: "mi"
     property string theme: "Dark"
     property string mapTheme: "Follow app"
@@ -51,6 +52,7 @@ AModal {
         { key: "startup", label: "Startup", icon: "home", note: "Tray, Windows sign-in" },
         { key: "database", label: "Database", icon: "database", note: "Sampling & retention" }
     ]
+    readonly property var modeList: app.modesFor(showSimulation)
     readonly property var modeNotes: ({
         "Simulation": "Fictional aircraft and vessels move near your home location. No hardware needed — ideal for trying alerts and geofences.",
         "Aircraft": "The primary receiver listens for ADS-B at 1090 MHz, 2.4 MS/s.",
@@ -70,7 +72,7 @@ AModal {
     function openWith(isFirst, section) {
         var d = app.settingsData()
         first = isFirst
-        mode = d.mode; units = d.units; theme = d.theme; mapTheme = d.map_theme
+        mode = d.mode; units = d.units; theme = d.theme; mapTheme = d.map_theme; showSimulation = d.show_simulation
         homeEnabled = d.homeEnabled; tiles = d.tiles; folder = d.folder
         latField.text = d.homeEnabled ? Number(d.lat).toFixed(6) : ""
         lonField.text = d.homeEnabled ? Number(d.lon).toFixed(6) : ""
@@ -94,7 +96,7 @@ AModal {
         backupStatus = app.lastBackupText(d.backupFolder)
         lookupPhotos = d.lookupPhotos; lookupRoutes = d.lookupRoutes; checkUpdates = d.check_updates
         phoneMapEnabled = d.phoneMapEnabled; phoneMapPortField.text = String(d.phoneMapPort)
-        modeBox.currentIndex = Math.max(0, app.modes.indexOf(mode))
+        modeBox.currentIndex = Math.max(0, dlg.modeList.indexOf(mode))
         mapBox.currentIndex = Math.max(0, mapBox.indexOfValue(mapTheme))
         var index = 0
         for (var i = 0; i < sections.length; i++) if (sections[i].key === section) index = i
@@ -114,7 +116,8 @@ AModal {
 
     function save(keepOpen) {
         var result = app.saveSettings({
-            mode: mode, units: units, theme: theme, homeEnabled: homeEnabled, lat: latField.text, lon: lonField.text,
+            mode: mode, units: units, theme: theme, show_simulation: showSimulation,
+            homeEnabled: homeEnabled, lat: latField.text, lon: lonField.text,
             aircraft_device: primaryField.text, marine_device: secondField.text,
             aircraft_seconds: aircraftDwell.text, marine_seconds: marineDwell.text, gain: gainField.text || "auto",
             ppm: ppmField.text || "0", aircraft_ttl: aircraftTtl.text, vessel_ttl: vesselTtl.text, map_theme: mapTheme,
@@ -232,8 +235,8 @@ AModal {
                     ACombo {
                         id: modeBox; enabled: !dlg.running
                         Layout.preferredWidth: 280
-                        model: app.modes
-                        onActivated: (i) => dlg.mode = app.modes[i]
+                        model: dlg.modeList
+                        onActivated: (i) => dlg.mode = dlg.modeList[i]
                     }
                     Text {
                         Layout.fillWidth: true
@@ -259,6 +262,18 @@ AModal {
                         onPicked: (v) => dlg.theme = v
                     }
                 }
+                ASwitch {
+                    objectName: "showSimulation"
+                    Layout.fillWidth: true
+                    text: "Show simulation mode"
+                    subtitle: "Adds a Simulation monitoring mode with fictional aircraft and vessels near your home location, for trying alerts and geofences without a receiver."
+                    checked: dlg.showSimulation
+                    onToggled: {
+                        dlg.showSimulation = checked
+                        if (!checked && dlg.mode === "Simulation") dlg.mode = "Aircraft"
+                        modeBox.currentIndex = Math.max(0, dlg.modeList.indexOf(dlg.mode))
+                    }
+                }
                 InfoBox {
                     text: "One receiver tunes to one service at a time. Automatic switching misses transmissions on the other band; two distinct receivers are required for continuous dual reception. AirAlert and other SDR programs (such as SDR#) cannot use the same receiver at the same time."
                 }
@@ -268,7 +283,7 @@ AModal {
             SettingsSection {
                 ASwitch {
                     text: "Use a home / receiver location"
-                    subtitle: "Needed for distance, bearing, range rings, proximity alerts and simulation."
+                    subtitle: "Needed for distance, bearing, range rings and proximity alerts" + (dlg.showSimulation ? ", and for simulation." : ".")
                     checked: dlg.homeEnabled
                     onToggled: dlg.homeEnabled = checked
                     Layout.fillWidth: true
@@ -604,7 +619,7 @@ AModal {
                     onToggled: dlg.lookupRoutes = checked
                 }
                 InfoBox {
-                    text: "When on, the selected aircraft's ICAO address or callsign is sent to adsbdb.com, and photos are loaded from airport-data.com. Both see your IP address. Nothing about your station, location or other traffic is sent, and simulated traffic is never looked up."
+                    text: "When on, the selected aircraft's ICAO address or callsign is sent to adsbdb.com, and photos are loaded from airport-data.com. Both see your IP address. Nothing about your station, location or other traffic is sent" + (dlg.showSimulation ? ", and simulated traffic is never looked up." : ".")
                 }
                 Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.border }
                 ASwitch {

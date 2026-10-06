@@ -185,7 +185,7 @@ GlassPanel {
                     width: parent.width
                     horizontalAlignment: Text.AlignHCenter
                     text: search.text !== "" ? "Search matches ICAO, MMSI, callsign, registration and vessel name."
-                        : app.running ? "Reception depends on antenna, gain and local traffic. Simulation mode shows sample targets."
+                        : app.running ? "Reception depends on antenna, gain and local traffic." + (app.simulationEnabled ? " Simulation mode shows sample targets." : "")
                         : "Drag the map to explore, scroll to zoom, click a marker to inspect it."
                     color: Theme.muted
                     font.pixelSize: 12

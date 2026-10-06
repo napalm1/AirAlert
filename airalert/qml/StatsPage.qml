@@ -10,7 +10,9 @@ Item {
     readonly property var live: insights.live
     readonly property string units: charts.units || app.units
     readonly property string scopeText: (charts.rangeLabel || "Last 24 hours").toLowerCase()
-    readonly property string sourceText: insights.includeSimulation ? "received RF and simulation" : "received RF only"
+    readonly property string sourceText: insights.includeSimulation ? "received RF and simulation" : app.simulationEnabled ? "received RF only" : "received RF"
+    // Simulation is only mentioned once it has been switched on in Settings > General.
+    readonly property string simHint: app.simulationEnabled && !insights.includeSimulation ? " Simulated traffic appears when Include simulation is on." : ""
 
     function reload() { stats = app.statistics() }
     function rowsFor(source) { return (stats.rows || []).filter(function(r) { return r.source === source }) }
@@ -56,7 +58,7 @@ Item {
             PageHeader {
                 Layout.fillWidth: true
                 title: "Statistics"
-                subtitle: "Your station at a glance. Simulation and received RF observations are always counted separately."
+                subtitle: "Your station at a glance." + (app.simulationEnabled ? " Simulation and received RF observations are always counted separately." : "")
             }
 
             GridLayout {
@@ -124,6 +126,7 @@ Item {
                 }
                 ASwitch {
                     objectName: "statsSimulation"
+                    visible: app.simulationEnabled
                     Layout.preferredWidth: 180
                     text: "Include simulation"
                     checked: insights.includeSimulation
@@ -151,7 +154,7 @@ Item {
                     empty: !page.charts.rate.hasData
                     emptyIcon: "pulse"
                     emptyTitle: "No message history for this period"
-                    emptyText: "AirAlert records the message rate once a minute while monitoring." + (insights.includeSimulation ? "" : " Simulated minutes appear when Include simulation is on.")
+                    emptyText: "AirAlert records the message rate once a minute while monitoring." + page.simHint
                     footnote: page.charts.rate.hasData ? "Average " + page.num(page.charts.rate.average, 1) + " msg/s · busiest minute " + page.num(page.charts.rate.peak, 1) + " msg/s · " + page.num(page.charts.rate.hours, 1) + " h monitored" : ""
                     tableHeader: ["Period starting", "Messages / s"]
                     tableRows: {
@@ -241,7 +244,7 @@ Item {
                     empty: !page.charts.hours.hasData
                     emptyIcon: "clock"
                     emptyTitle: "No aircraft positions in this period"
-                    emptyText: "Aircraft appear here once positions are decoded. Traffic near you can be light at night." + (insights.includeSimulation ? "" : " Simulated traffic appears when Include simulation is on.")
+                    emptyText: "Aircraft appear here once positions are decoded. Traffic near you can be light at night." + page.simHint
                     footnote: page.charts.hours.peakHour >= 0 ? "Busiest hour " + page.pad2(page.charts.hours.peakHour) + ":00–" + page.pad2((page.charts.hours.peakHour + 1) % 24) + ":00" : ""
                     tableHeader: ["Hour", "Aircraft"]
                     tableRows: {
@@ -271,7 +274,7 @@ Item {
                     empty: !page.charts.daily.hasData
                     emptyIcon: "chart"
                     emptyTitle: "No traffic in the last 14 days"
-                    emptyText: insights.includeSimulation ? "Start monitoring to build daily totals." : "Only received RF is counted. Turn on Include simulation to see simulated traffic."
+                    emptyText: "Start monitoring to build daily totals." + page.simHint
                     footnote: page.charts.daily.busiest ? "Busiest day " + page.charts.daily.busiest + " · each panel has its own scale" : ""
                     tableHeader: ["Day", "Aircraft", "Vessels"]
                     tableRows: {
@@ -332,7 +335,7 @@ Item {
                     emptyIcon: page.charts.coverage.homeSet ? "radar" : "home"
                     emptyTitle: page.charts.coverage.homeSet ? "No positions received in this period" : "Set your home location"
                     emptyText: page.charts.coverage.homeSet
-                               ? "Coverage grows as your receiver decodes positions in each direction. Real RF can be quiet, especially at night." + (insights.includeSimulation ? "" : " Include simulation to preview it.")
+                               ? "Coverage grows as your receiver decodes positions in each direction. Real RF can be quiet, especially at night." + page.simHint
                                : "Coverage is measured from your station. Add it in Settings → Location."
                     footnote: page.charts.coverage.hasData ? page.charts.coverage.sectors + " of 36 sectors heard · surface distance from home" : ""
                     tableHeader: ["Bearing", "Aircraft (" + page.units + ")", "Vessels (" + page.units + ")"]
@@ -474,7 +477,7 @@ Item {
             Text {
                 visible: insights.records.length === 0
                 Layout.fillWidth: true
-                text: "Records such as your farthest contact and busiest hour appear here once positions have been received." + (insights.includeSimulation ? "" : " Simulated traffic counts only when Include simulation is on.")
+                text: "Records such as your farthest contact and busiest hour appear here once positions have been received." + page.simHint
                 color: Theme.muted
                 font.pixelSize: 12
                 wrapMode: Text.WordWrap
@@ -494,7 +497,7 @@ Item {
                 Layout.fillWidth: true
                 spacing: 12
                 Repeater {
-                    model: ["Local RF", "Simulation"]
+                    model: app.simulationEnabled ? ["Local RF", "Simulation"] : ["Local RF"]
                     delegate: Rectangle {
                         id: sourceCard
                         required property string modelData

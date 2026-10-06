@@ -189,7 +189,8 @@ class Controller(QObject):
         return Property(ptype, getter, notify=notify)
 
     version = Property(str, lambda self: __version__, constant=True)
-    modes = Property('QVariantList', lambda self: MODES, constant=True)
+    modes = _p('QVariantList', lambda self: self.modesFor(self.config['show_simulation']), settingsChanged)
+    simulationEnabled = _p(bool, lambda self: bool(self.config['show_simulation']), settingsChanged)
     running = _p(bool, lambda self: self.station.running, stateChanged)
     mode = _p(str, lambda self: self.station.mode if self.station.running else self._mode_choice, stateChanged)
     isSimulation = _p(bool, lambda self: bool(self.station.sim), stateChanged)
@@ -643,9 +644,14 @@ class Controller(QObject):
         self.stateChanged.emit()
 
     # ---------------------------------------------------------------- control
+    @Slot(bool, result='QVariantList')
+    def modesFor(self, show_simulation):
+        """The monitoring modes offered to the user: Simulation only once it has been switched on."""
+        return [m for m in MODES if m != 'Simulation' or show_simulation]
+
     @Slot(str)
     def setMode(self, mode):
-        if mode in MODES and not self.station.running:
+        if mode in self.modesFor(self.config['show_simulation']) and not self.station.running:
             self._mode_choice = mode
             self.stateChanged.emit()
 
@@ -1276,6 +1282,7 @@ class Controller(QObject):
                     tiles=c['tiles'], rings=', '.join(f'{r:g}' for r in c['rings']), trail_minutes=c['trail_minutes'],
                     sample_seconds=c['sample_seconds'], retention_days=c['retention_days'], folder=str(c.folder),
                     setupDone=c['setup_done'], running=self.station.running,
+                    show_simulation=c['show_simulation'],
                     close_to_tray=c['close_to_tray'], start_with_windows=startup.is_enabled(),
                     auto_start=c['auto_start'], trayAvailable=self.tray is not None,
                     quietEnabled=c['quiet_hours']['enabled'], quietStart=c['quiet_hours']['start'],
@@ -1313,6 +1320,9 @@ class Controller(QObject):
                 except ValueError:
                     raise ValueError('Gain must be "auto" or a number of dB between 0 and 50.')
             values['close_to_tray'] = bool(form.get('close_to_tray', self.config['close_to_tray']))
+            values['show_simulation'] = bool(form.get('show_simulation', self.config['show_simulation']))
+            if values['mode'] == 'Simulation' and not values['show_simulation']:
+                values['mode'] = 'Aircraft'
             values['auto_start'] = bool(form.get('auto_start', self.config['auto_start']))
             quiet = dict(enabled=bool(form.get('quietEnabled', False)),
                          start=str(form.get('quietStart', '22:00')).strip(), end=str(form.get('quietEnd', '07:00')).strip())
@@ -1381,6 +1391,8 @@ class Controller(QObject):
                     raise ValueError(f'{key.replace("_", " ").capitalize()} must be between {low} and {high}.')
         except (KeyError, TypeError, ValueError) as e:
             return str(e) if isinstance(e, ValueError) else f'Missing or invalid value: {e}'
+        if self.station.sim and not values['show_simulation']:
+            self.stop()   # simulation mode is being hidden: do not leave it running
         if self.station.running:
             changed = [k for k in RECEIVER_KEYS if _comparable(values.get(k)) != _comparable(self.config[k])]
             if changed:
@@ -1424,8 +1436,9 @@ class Controller(QObject):
                 text = ('A USB receiver was found, but Windows denied access. Close other SDR apps (such as '
                         'SDR#), check the WinUSB driver and reconnect the receiver.')
             else:
-                text = ('No accessible RTL-SDR receivers detected. Check the USB connection and WinUSB driver. '
-                        'Simulation works without hardware.')
+                text = 'No accessible RTL-SDR receivers detected. Check the USB connection and WinUSB driver.'
+                if self.config['show_simulation']:
+                    text += ' Simulation works without hardware.'
             self.receiversDetected.emit(text, [dict(index=i, name=n.strip(), serial=s) for i, n, s in devices])
 
         process.finished.connect(finished)

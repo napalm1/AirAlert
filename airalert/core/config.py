@@ -11,7 +11,9 @@ def data_dir():
     return p
 
 
-DEFAULTS = dict(home=None, units='mi', mode='Simulation', aircraft_device='0', marine_device='1',
+DEFAULTS = dict(home=None, units='mi', mode='Aircraft', aircraft_device='0', marine_device='1',
+                # Simulation mode (fictional traffic, no receiver) is hidden until this is switched on
+                show_simulation=False,
                 gain='auto', ppm=0, aircraft_seconds=60, marine_seconds=60,
                 aircraft_ttl=120, vessel_ttl=900, trail_minutes=15, sample_seconds=10,
                 retention_days=90, tiles=False, theme='Dark', map_theme='Follow app',
@@ -64,6 +66,8 @@ class Config:
             try:
                 loaded = json.loads(self.path.read_text('utf-8'))
                 self.validate(loaded)
+                if loaded.get('mode') == 'Simulation' and 'show_simulation' not in loaded:
+                    loaded['show_simulation'] = True   # settings from before the switch existed keep working
                 for key, value in loaded.items():
                     # Nested settings gain new default keys added by later versions.
                     if isinstance(DEFAULTS.get(key), dict) and isinstance(value, dict):
@@ -91,8 +95,10 @@ class Config:
                 raise ValueError(f'Invalid {k}')
         if d.get('units', 'mi') not in ('mi', 'nm', 'km'):
             raise ValueError('Invalid distance units')
-        if d.get('mode','Simulation') not in ('Simulation','Aircraft','Marine','Automatic switching','Dual receivers'):
+        if d.get('mode','Aircraft') not in ('Simulation','Aircraft','Marine','Automatic switching','Dual receivers'):
             raise ValueError('Invalid monitoring mode')
+        if not isinstance(d.get('show_simulation', False), bool):
+            raise ValueError('Invalid show_simulation')
         if d.get('theme','Dark') not in ('Dark','Light'):
             raise ValueError('Invalid appearance')
         if d.get('map_theme','Follow app') not in ('Follow app','Dark','Light','Scope only'):

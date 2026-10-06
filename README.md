@@ -2,7 +2,7 @@
 
 A Windows desktop station for tracking nearby aircraft (ADS-B, 1090 MHz) and vessels (AIS, 162 MHz) with an RTL-SDR receiver. It gives you alerts when something you care about comes close. Everything runs and stays on your computer, except the optional internet features listed under *Data and privacy*.
 
-AirAlert reuses HarborScope's proven receiver, decoding, alerting and storage backend (`airalert/core`) with a completely new Qt Quick interface. It is fully separate from HarborScope: its own program folder, its own data folder (`%LOCALAPPDATA%\AirAlert`) and its own copies of the decoders. The two apps cannot use the same USB receiver at the same time.
+AirAlert keeps its program files, its data folder (`%LOCALAPPDATA%\AirAlert`) and its own copies of the decoders together. Only one program can use a USB receiver at a time, so close other SDR software before starting monitoring.
 
 ## Launch
 
@@ -17,7 +17,7 @@ Settings → **Startup**:
 
 ## The interface
 
-- **Top bar**: page tabs (Live map, Alerts, History, Watchlist, Statistics; Left/Right/Home/End when focused), monitoring status, mode picker, Start/Stop, light/dark toggle and Settings (Ctrl+,).
+- **Top bar**: page tabs (Live map, Alerts, History, Watchlist, Statistics; Left/Right/Home/End when focused), monitoring status, receiver mode picker, Start/Stop, light/dark toggle and Settings (Ctrl+,).
 - **Live map**: a full-window map with floating panels.
   - *Traffic* (left): live list with search (Ctrl+F; Esc clears) and sort chips (distance, altitude, speed, bearing, name, ID, type, recent). Click a row to inspect it without moving the map; double-click to center on it. The panel collapses.
   - *Inspector* (right): slides in for the selected target, with key readouts, every received field (including model, manufacturer and operator from the aircraft database), **Watch**, **Create alert** and **Center** actions. A dash (—) means the field hasn't been received.
@@ -51,7 +51,9 @@ Settings → **Notifications**:
 
 ## Receivers and reception check
 
-Simulation (fictional traffic near home, no hardware needed), Aircraft, Marine, Automatic switching (one receiver alternates bands and misses the other band while away), or Dual receivers (two different dongles). Settings → Receivers detects RTL-SDR devices; assign them by serial number. Gain, PPM and target expiry are under Advanced SDR. Settings can be changed while monitoring runs, except receiver settings.
+Modes: Aircraft, Marine, Automatic switching (one receiver alternates bands and misses the other band while away), or Dual receivers (two different dongles). Settings → Receivers detects RTL-SDR devices; assign them by serial number. Gain, PPM and target expiry are under Advanced SDR. Settings can be changed while monitoring runs, except receiver settings.
+
+**Trying it without a receiver**: Settings → General → **Show simulation mode** adds a *Simulation* mode that moves fictional aircraft and vessels near your home location, so alerts, geofences and the map can be tried with no hardware. It is off by default and the app never mentions simulation until it is switched on; simulated traffic is always recorded and counted separately from received RF.
 
 **Run reception check…** (Settings → Receivers, with monitoring stopped) listens at several gains for 10–30 s each, counts frames, valid messages, targets and positions, and recommends the best gain with one click. If nothing is heard at any gain, check the antenna connection and placement; traffic is also much lighter at night.
 
@@ -65,7 +67,7 @@ Map tools → Geofences → **Draw new geofence**. Click at least three points, 
 
 - **History**: search sightings or events (alerts, detections, receiver, app) by text, date range (quick 1 h–All presets), target type and maximum distance. Double-click a sighting, or use **Open track on map**, to show its dashed track. **Replay period on map** plays back all traffic from the chosen period with play/pause, speed (1×–1200×) and a time slider; the map is framed in amber while replaying. Export results or a track as CSV or JSON. **Database maintenance** shows size and oldest data and deletes old history after a confirmation step. Results are capped at 5,000.
 - **Watchlist**: name, identifier (ICAO, registration or MMSI), type and notes, with last seen, encounter counts and a one-click alert. The **Aircraft database** card shows the built-in registration/type database (~570,000 aircraft, bundled). **Update from OpenSky** downloads the latest public database (about 25 MB); **Import CSV…** adds your own lookup (`icao`/`icao24`, `registration`, `type`/`typecode`), which takes precedence.
-- **Statistics**: live counts and archive totals, plus charts for message rate (with a live 10-minute sparkline), aircraft by hour of day, unique aircraft and vessels per day, top aircraft types and operators, and a **coverage** rose of your receiver's range. Choose 24 hours / 7 days / 30 days and whether to include simulation.
+- **Statistics**: live counts and archive totals, plus charts for message rate (with a live 10-minute sparkline), aircraft by hour of day, unique aircraft and vessels per day, top aircraft types and operators, and a **coverage** rose of your receiver's range. Choose 24 hours / 7 days / 30 days (and, when simulation mode is switched on, whether to include simulated traffic).
 
 ## Data and privacy
 
@@ -125,15 +127,15 @@ desktop shortcut, launch when finished). It installs for that Windows account on
 can be uninstalled (settings and history are kept unless you tick delete). Running a newer installer updates in place and
 keeps settings and history. Friends get a fresh setup wizard on first launch; nothing of yours is inside the installer.
 
-Windows 10 or 11 (64-bit). Simulation mode works immediately; a real RTL-SDR receiver also needs its WinUSB driver
-(install it with Zadig) and the receiver plugged in.
+Windows 10 or 11 (64-bit). An RTL-SDR receiver needs its WinUSB driver (install it with Zadig); without a receiver,
+switch on simulation mode in Settings → General to look around.
 
 The installer is not code-signed (that needs a paid certificate), so Windows SmartScreen may say "Windows protected your
 PC" the first time: choose **More info > Run anyway**. Some antivirus programs are cautious about any unsigned
 single-file installer; the SHA-256 printed by `make_installer.py` lets a friend confirm the file arrived intact
-(`Get-FileHash .\AirAlert-Setup-1.0.0.exe`).
+(`Get-FileHash .\AirAlert-Setup-<version>.exe`).
 
-Silent install for scripts: `AirAlert-Setup-1.0.0.exe /S [/D=C:\folder] [/NODESKTOP] [/LAUNCH]`; the exit code is 0 on
+Silent install for scripts: `AirAlert-Setup-<version>.exe /S [/D=C:\folder] [/NODESKTOP] [/LAUNCH]`; the exit code is 0 on
 success. Problems are logged to `%TEMP%\AirAlert-setup.log`. An install never leaves a half-finished state: files are
 unpacked beside the target and swapped in only when complete, and any failure restores the previous version.
 
@@ -158,6 +160,6 @@ window is hidden in the tray; and there are no endless decorative animations, be
 
 This machine's Python is the Microsoft Store build, so running from source with it redirects `%LOCALAPPDATA%` writes into `AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_…\LocalCache\Local\AirAlert`, separate from the real folder the exe uses. Set `AIRALERT_DATA` to choose a data folder explicitly when running from source.
 
-Layout: `airalert/core` (backend from HarborScope, extended with new alert conditions and settings), `airalert/engine.py` (monitoring engine), `airalert/notify.py` (quiet hours, voice, phone), `airalert/startup.py`, `airalert/aircraftdb.py` + `airalert/insights.py` (aircraft database, statistics), `airalert/airports.py`, `airalert/playback.py`, `airalert/reception.py`, `airalert/ui` (controller, feature bridges, map canvas, tiles, models), `airalert/qml` (interface), `vendor` (decoders, aircraft and airport data), `installer` (the setup program and uninstaller), `tools` (build, installer, icon, screenshots, benchmarks).
+Layout: `airalert/core` (receivers, decoding, alert rules, settings and the history database), `airalert/engine.py` (monitoring engine), `airalert/notify.py` (quiet hours, voice, phone), `airalert/startup.py`, `airalert/aircraftdb.py` + `airalert/insights.py` (aircraft database, statistics), `airalert/airports.py`, `airalert/playback.py`, `airalert/reception.py`, `airalert/ui` (controller, feature bridges, map canvas, tiles, models), `airalert/qml` (interface), `vendor` (decoders, aircraft and airport data), `installer` (the setup program and uninstaller), `tools` (build, installer, icon, screenshots, benchmarks).
 
 Source is GPL-3.0 (pyModeS is GPL-3.0); see LICENSE and THIRD_PARTY.md.

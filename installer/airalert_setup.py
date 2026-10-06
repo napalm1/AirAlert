@@ -434,8 +434,8 @@ def run_gui():
              f'{round(meta["size_bytes"] / (1 << 20), -1):.0f} MB of disk space.']
     if existing:
         notes.insert(0, f'{APP} {existing} is already installed here. Setup will update it and keep your settings and history.')
-    notes.append('You can try AirAlert straight away in Simulation mode. To use a real RTL-SDR receiver, Windows needs '
-                 'its WinUSB driver (the README explains how).')
+    notes.append('AirAlert works with an RTL-SDR USB receiver, which needs the WinUSB driver (the README explains '
+                 'how to install it with Zadig).')
     ttk.Label(page, text='\n\n'.join(notes), style='Sub.TLabel', wraplength=500, justify='left').pack(anchor='w')
 
     # -- progress page
@@ -506,7 +506,7 @@ def run_gui():
         done_title.configure(text=f'{APP} is installed')
         done_text.configure(text=f'It was installed to:\n{folder}\n\nFind it in the Start menu' +
                                  (' and on your desktop' if desktop_var.get() else '') + '. On first launch it walks you '
-                                 'through setting your location. Choose Simulation mode to look around without a receiver.')
+                                 'through setting your location and receiver.')
         show('done')
         left.pack_forget()
         secondary.pack_forget()

@@ -70,6 +70,9 @@ class Insights(QObject):
         aircraftdb.ensure_local(self.folder)
         self._refresh_db_info()
         controller.refresh_hooks.append(self._on_refresh)
+        self._shown_sim = self.include_sim
+        controller.settingsChanged.connect(self._settings_changed)
+        controller.stateChanged.connect(self._state_changed)
         app = QCoreApplication.instance()
         if app is not None:
             app.aboutToQuit.connect(self.shutdown)
@@ -98,7 +101,7 @@ class Insights(QObject):
 
     stats = _p('QVariantMap', lambda self: self._stats, statsChanged)
     timeRange = _p(str, lambda self: self._range, statsChanged)
-    includeSimulation = _p(bool, lambda self: self._include_sim, statsChanged)
+    includeSimulation = _p(bool, lambda self: self.include_sim, statsChanged)
     live = _p('QVariantMap', lambda self: self._live, liveChanged)
     aircraftDb = _p('QVariantMap', lambda self: self._db, aircraftDbChanged)
     health = _p('QVariantMap', lambda self: self._health, liveChanged)
@@ -248,12 +251,12 @@ class Insights(QObject):
             except sqlite3.Error:
                 log.exception('Statistics rollup failed')
         try:
-            data = insights.snapshot(self.conn, self._range, self._include_sim, now)
+            data = insights.snapshot(self.conn, self._range, self.include_sim, now)
         except sqlite3.Error:
             log.exception('Statistics query failed')
             return
         try:
-            self._records = insights.records(self.conn, self._include_sim, now)
+            self._records = insights.records(self.conn, self.include_sim, now)
         except sqlite3.Error:
             log.exception('Station records query failed')
         self._stats = self._present(data, now)
@@ -276,7 +279,7 @@ class Insights(QObject):
         busiest = max(daily, key=lambda d: d['aircraft'] + d['vessels']) if daily else None
         with_type = sum(r['value'] for r in data['types'])
         return dict(
-            range=self._range, rangeLabel=RANGE_LABELS[self._range], includeSim=self._include_sim, units=units,
+            range=self._range, rangeLabel=RANGE_LABELS[self._range], includeSim=self.include_sim, units=units,
             ready=True, updated=datetime.fromtimestamp(now).strftime('%H:%M'), elapsedMs=data['elapsedMs'],
             start=data['start'], end=data['end'],
             rate=dict(points=points, hasData=rate['minutes'] > 0, average=rate['average'], peak=rate['peak'],
@@ -300,6 +303,22 @@ class Insights(QObject):
         if value in insights.RANGES and value != self._range:
             self._range = value
             self.reload()
+
+    def _state_changed(self):
+        """The live card follows Start/Stop at once rather than at the next one-second refresh."""
+        if self._active and self._live['running'] != self.station.running:
+            self._update_live(time.time())
+
+    def _settings_changed(self):
+        """Hiding or showing simulation mode in Settings changes what the statistics count."""
+        if self.include_sim != self._shown_sim:
+            self._shown_sim = self.include_sim
+            self.reload()
+
+    @property
+    def include_sim(self):
+        """Simulated observations count only while simulation mode is switched on in Settings."""
+        return self._include_sim and bool(self.controller.config['show_simulation'])
 
     @Slot(bool)
     def setIncludeSimulation(self, value):
@@ -328,7 +347,7 @@ class Insights(QObject):
             return
         if cov is None:
             try:
-                cov = insights.coverage(self.conn, now - insights.RANGES[self._range], now, self._include_sim)
+                cov = insights.coverage(self.conn, now - insights.RANGES[self._range], now, self.include_sim)
             except sqlite3.Error:
                 log.exception('Coverage query failed')
                 return

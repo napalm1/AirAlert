@@ -1,6 +1,6 @@
 # Dependencies and notices
 
-AirAlert's source is GPL-3.0 because it uses GPL-3.0 pyModeS. Its backend (`airalert/core`) is adapted from HarborScope (GPL-3.0).
+AirAlert's source is GPL-3.0 because it uses GPL-3.0 pyModeS.
 
 | Component | Version / source | License / purpose |
 |---|---|---|
