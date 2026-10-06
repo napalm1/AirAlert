@@ -20,6 +20,7 @@ New-Item -ItemType Directory $root, "$root\startmenu", "$root\desktop", "$root\d
 '{"home":[1,2],"setup_done":true}' | Set-Content "$root\data\settings.json"     # stands in for a user's settings
 $env:AIRALERT_SETUP_STARTMENU = "$root\startmenu"; $env:AIRALERT_SETUP_DESKTOP = "$root\desktop"
 $env:AIRALERT_SETUP_REGKEY = "$regRoot\Uninstall\AirAlert"; $env:AIRALERT_DATA = "$root\data"
+$env:AIRALERT_UPDATE_URL = 'off'   # the launched app must not contact the update feed during the test
 $dir = "$root\Programs\AirAlert"
 $sh = New-Object -ComObject WScript.Shell
 $bad = 0

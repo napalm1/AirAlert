@@ -186,3 +186,11 @@ def test_switching_simulation_on_and_off(ui):
     window.setProperty('page', 0)
     pump(100)
     assert not warnings(ui), ui['capture'].records
+
+
+def test_update_feed_is_configured_but_switched_off_for_tests(ui):
+    """The shipped copy checks GitHub for updates; tests (via conftest) and tools never do."""
+    from airalert import UPDATE_URL
+    assert UPDATE_URL.startswith('https://github.com/') and UPDATE_URL.endswith('/latest.json')
+    controller = ui['controller']
+    assert controller.update_url == '' and controller.property('updateInfo')['configured'] is False

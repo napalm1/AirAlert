@@ -70,6 +70,7 @@ def main():
     shutil.rmtree(data, ignore_errors=True)
     data.mkdir(parents=True)
     os.environ['AIRALERT_DATA'] = str(data)
+    os.environ['AIRALERT_UPDATE_URL'] = 'off'
     os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
     os.environ.setdefault('QT_QUICK_BACKEND', 'software')
     os.environ.setdefault('QT_QPA_FONTDIR', r'C:\Windows\Fonts')

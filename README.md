@@ -78,7 +78,7 @@ Optional internet features, all off until you use them:
 - **Update from OpenSky**: downloads a public aircraft database file. Nothing else is sent.
 - **Phone notifications**: the alert text (target name, distance, rule) is sent to ntfy or Pushover.
 - **Aircraft photos / likely routes**: the selected aircraft's ICAO address or callsign is sent to adsbdb.com; photos load from airport-data.com.
-- **Update check**: asks the address you configured whether a newer version exists (inactive until configured).
+- **Update check**: asks github.com once a day whether a newer version exists (GitHub sees your IP address). Off in Settings → Connections.
 - **Phone map**: serves the live map to paired devices on your home network only; nothing is sent to the internet.
 
 Nothing else leaves your computer.
@@ -108,10 +108,11 @@ Nothing else leaves your computer.
   AirAlert through the firewall the first time: allow Private networks.
 - **Aircraft photos and likely routes** (Settings → Connections, each off by default): for the selected aircraft, its
   ICAO address or callsign is sent to adsbdb.com and the photo is loaded from airport-data.com. Never for simulation.
-- **Update check**: reads a small `latest.json` from the address in `airalert/__init__.py` (`UPDATE_URL`) and tells you
-  when a newer version exists; it never downloads or installs by itself. It is inactive until you host releases:
-  upload `release/AirAlert-Setup-<version>.exe` and `release/latest.json` (written by `make_installer.py`) to any
-  https location, set `UPDATE_URL` to the address of `latest.json`, and rebuild.
+- **Update check** (Settings → Connections, on by default): once a day AirAlert reads a small `latest.json` from the
+  newest GitHub release and tells you when a newer version exists; it never downloads or installs by itself. To
+  publish a release, attach both `release/AirAlert-Setup-<version>.exe` and `release/latest.json` (written by
+  `make_installer.py`) to a GitHub release tagged `v<version>`; `UPDATE_URL` in `airalert/__init__.py` points at the
+  `releases/latest/download/latest.json` address.
 
 ## Sharing AirAlert: the one-file installer
 

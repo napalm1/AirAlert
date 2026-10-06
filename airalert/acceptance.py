@@ -4,6 +4,7 @@ Runs the real interface with simulated traffic and writes results.json.
 Exit code 0 means every check passed.
 """
 import json
+import os
 import logging
 import queue
 import time
@@ -48,6 +49,7 @@ def run(folder):
     from .app import build
     from .core.models import destination
     from .core.receivers import resource_root
+    os.environ['AIRALERT_UPDATE_URL'] = 'off'   # the self-test never contacts the update feed
     _app, engine, controller, window = build(['AirAlert', '--self-test'], tray=False, show=True, dialogs=False)
     results = {}
     if window is None:

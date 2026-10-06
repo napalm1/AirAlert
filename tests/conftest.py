@@ -8,3 +8,5 @@ sys.path.insert(0, str(ROOT))
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 os.environ.setdefault('QT_QUICK_BACKEND', 'software')
 os.environ.setdefault('QT_QPA_FONTDIR', r'C:\Windows\Fonts')
+# Tests never contact the real update feed; the update tests point at a local stand-in instead.
+os.environ['AIRALERT_UPDATE_URL'] = 'off'

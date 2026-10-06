@@ -30,6 +30,7 @@ def main():
         shutil.rmtree(data)
     data.mkdir(parents=True)
     os.environ['AIRALERT_DATA'] = str(data)
+    os.environ['AIRALERT_UPDATE_URL'] = 'off'
     settings = dict(home=[38.4, -122.8], units='mi', mode='Simulation', setup_done=True, sample_seconds=1,
                     theme='Dark', map_theme='Follow app', tiles=False,
                     rules=[dict(id='r1', name='Aircraft proximity', enabled=True, kind='aircraft', field='registration',

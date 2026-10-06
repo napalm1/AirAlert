@@ -53,6 +53,7 @@ def main():
     (folder / 'settings.json').write_text(json.dumps(dict(home=HOME, mode='Simulation', setup_done=True,
                                                           sample_seconds=1, theme='Dark')), 'utf-8')
     os.environ['AIRALERT_DATA'] = str(folder)
+    os.environ['AIRALERT_UPDATE_URL'] = 'off'
     t0 = time.perf_counter()
     from airalert.app import build
     print(f'{"import airalert.app":52s} {(time.perf_counter() - t0) * 1000:9.2f} ms')

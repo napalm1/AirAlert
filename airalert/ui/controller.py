@@ -2,6 +2,7 @@
 import json
 import logging
 import math
+import os
 import re
 import secrets
 import sqlite3
@@ -171,8 +172,12 @@ class Controller(QObject):
         self._backup_thread = None
         self._backup_tried = 0.0
         self.backupFinished.connect(self._backup_done, Qt.ConnectionType.QueuedConnection)
-        self.update_url = UPDATE_URL
-        self._update = dict(configured=bool(UPDATE_URL), available=False, version='', url='', notes='', status='')
+        # AIRALERT_UPDATE_URL overrides the feed address; any value that is not an https address (e.g. 'off')
+        # disables update checks, which tests, developer tools and the packaged self-test rely on.
+        self.update_url = os.environ.get('AIRALERT_UPDATE_URL', UPDATE_URL)
+        if not self.update_url.lower().startswith('https://'):
+            self.update_url = ''
+        self._update = dict(configured=bool(self.update_url), available=False, version='', url='', notes='', status='')
         self._update_checked = 0.0
         self._update_announced = ''
         self.pump = QTimer(self)
